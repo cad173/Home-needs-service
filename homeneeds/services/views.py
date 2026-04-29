@@ -3,12 +3,62 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
+from .models import Profile  
 
-
+# 🏠 Home Page
 def home(request):
     return render(request, 'services/home.html')
 
 
+# 🔐 Register View
+def register_view(request):
+    if request.method == "POST":
+        first_name = request.POST.get('first_name')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+
+        phone = request.POST.get('phone')
+        address = request.POST.get('address')
+        city = request.POST.get('city')
+        state = request.POST.get('state')
+        zipcode = request.POST.get('zipcode')
+        user_type = request.POST.get('user_type')
+
+        # ❗ Prevent duplicate users
+        if User.objects.filter(username=email).exists():
+            return render(request, 'services/register.html', {
+                'error': 'User already exists'
+            })
+
+        if first_name and email and password:
+            # Create Django user
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                password=password
+            )
+
+            # Save extra basic info
+            user.first_name = first_name
+            user.save()
+
+            # Create Profile (your ER model)
+            Profile.objects.create(
+                user=user,
+                phone=phone,
+                address=address,
+                city=city,
+                state=state,
+                zipcode=zipcode,
+                user_type=user_type,
+            )
+
+            return redirect('login')
+
+    return render(request, 'services/register.html')
+
+
+# 🔐 Login View
 def login_view(request):
     error = None
 
@@ -27,28 +77,18 @@ def login_view(request):
     return render(request, 'services/login.html', {'error': error})
 
 
-def register_view(request):
-    if request.method == "POST":
-        first_name = request.POST.get('first_name')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-
-        if first_name and email and password:
-            User.objects.create_user(
-                username=email,
-                email=email,
-                password=password
-            )
-            return redirect('login')
-
-    return render(request, 'services/register.html')
-
-
+# 📊 Dashboard (Protected)
 @login_required
 def dashboard(request):
-    return render(request, 'services/dashboard.html')
+    profile = Profile.objects.filter(user=request.user).first()
+
+    return render(request, 'services/dashboard.html', {
+        'user': request.user,
+        'profile': profile
+    })
 
 
+# 🚪 Logout
 def logout_view(request):
     logout(request)
     return redirect('home')
