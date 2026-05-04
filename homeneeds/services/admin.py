@@ -1,4 +1,5 @@
 from django.contrib import admin
+from .models import Profile
 
 from django.contrib import admin
 from .models import User, ProviderProfile, ClientProfile, Service, JobRequest, Booking, Payment, Review
@@ -11,3 +12,4 @@ admin.site.register(JobRequest)
 admin.site.register(Booking)
 admin.site.register(Payment)
 admin.site.register(Review)
+admin.site.register(Profile)
