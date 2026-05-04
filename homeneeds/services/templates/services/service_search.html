@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Search - HomeNeedsService</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: #333; }
+        .search-form { background: #f5f5f5; padding: 20px; border-radius: 6px; margin-bottom: 30px; }
+        .search-form label { display: block; margin-bottom: 4px; font-weight: bold; }
+        .search-form input, .search-form select { width: 100%; padding: 8px; margin-bottom: 14px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .search-form button { background: #2c7be5; color: #fff; padding: 10px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; }
+        .search-form button:hover { background: #1a5fbf; }
+        .result-summary { margin-bottom: 16px; color: #555; }
+        .section-title { border-bottom: 2px solid #2c7be5; padding-bottom: 6px; margin-top: 30px; }
+        .card { border: 1px solid #ddd; border-radius: 6px; padding: 16px; margin-bottom: 14px; background: #fff; }
+        .card h3 { margin-top: 0; color: #2c7be5; }
+        .card .badge { display: inline-block; background: #e8f0fe; color: #2c7be5; border-radius: 4px; padding: 2px 10px; font-size: 13px; margin-bottom: 8px; }
+        .card .badge.available { background: #e6f4ea; color: #137333; }
+        .card .badge.busy { background: #fce8e6; color: #c5221f; }
+        .card .detail { color: #555; font-size: 14px; margin: 4px 0; }
+        .card .actions { margin-top: 12px; }
+        .card .actions a { display: inline-block; margin-right: 10px; color: #2c7be5; text-decoration: none; font-size: 14px; }
+        .card .actions a:hover { text-decoration: underline; }
+        .no-results { color: #888; font-style: italic; padding: 10px 0; }
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 12px; color: #2c7be5; text-decoration: none; }
+        nav a:hover { text-decoration: underline; }
+        .form-row { display: flex; gap: 16px; }
+        .form-row .form-group { flex: 1; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/">Home</a>
+    <a href="/search/">Service Search</a>
+    <a href="/dashboard/">Dashboard</a>
+    {% if request.user.is_authenticated %}
+        <a href="/logout/">Logout</a>
+    {% else %}
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+    {% endif %}
+</nav>
+
+<h1>Service Search</h1>
+<p>Find available services and providers that match your needs.</p>
+
+<div class="search-form">
+    <form method="GET" action="/search/">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="service_type">Service Type / Category</label>
+                <select name="service_type" id="service_type">
+                    <option value="">-- All Categories --</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}" {% if service_type == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                    {% if service_type and service_type not in categories %}
+                        <option value="{{ service_type }}" selected>{{ service_type }}</option>
+                    {% endif %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="location">Location (City, State, or ZIP)</label>
+                <input type="text" name="location" id="location" placeholder="e.g. Austin, TX or 78701" value="{{ location }}">
+            </div>
+            <div class="form-group">
+                <label for="availability">Provider Availability</label>
+                <select name="availability" id="availability">
+                    <option value="">-- Any Availability --</option>
+                    <option value="available" {% if availability == "available" %}selected{% endif %}>Available</option>
+                    <option value="busy" {% if availability == "busy" %}selected{% endif %}>Busy</option>
+                    <option value="unavailable" {% if availability == "unavailable" %}selected{% endif %}>Unavailable</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit">Search</button>
+        {% if searched %}
+            <a href="/search/" style="margin-left:14px; color:#888; font-size:14px;">Clear filters</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if searched %}
+    <p class="result-summary">
+        Found <strong>{{ services.count }}</strong> service(s) and <strong>{{ providers.count }}</strong> provider(s)
+        {% if service_type %}for <em>"{{ service_type }}"</em>{% endif %}
+        {% if location %}in <em>"{{ location }}"</em>{% endif %}
+        {% if availability %}with availability <em>"{{ availability }}"</em>{% endif %}.
+    </p>
+{% endif %}
+
+<h2 class="section-title">Available Services</h2>
+
+{% if services %}
+    {% for service in services %}
+    <div class="card">
+        <h3>{{ service.service_name }}</h3>
+        <span class="badge">{{ service.category }}</span>
+        <p class="detail">{{ service.description }}</p>
+        <div class="actions">
+            <a href="/job-request/?service_id={{ service.id }}">&#43; Request This Service</a>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <p class="no-results">No services found matching your criteria.</p>
+{% endif %}
+
+<h2 class="section-title">Available Providers</h2>
+
+{% if providers %}
+    {% for profile in providers %}
+    <div class="card">
+        <h3>{{ profile.user.first_name }} {{ profile.user.last_name }}</h3>
+        <span class="badge {% if 'available' in profile.availability_status|lower %}available{% elif 'busy' in profile.availability_status|lower %}busy{% endif %}">
+            {{ profile.availability_status }}
+        </span>
+        <p class="detail"><strong>Location:</strong> {{ profile.user.city }}, {{ profile.user.state }} {{ profile.user.zip_code }}</p>
+        <p class="detail"><strong>Rate:</strong> ${{ profile.hourly_rate }}/hr &nbsp;|&nbsp; <strong>Experience:</strong> {{ profile.experience_years }} yr(s) &nbsp;|&nbsp; <strong>Travel Radius:</strong> {{ profile.travel_radius }} mi</p>
+        <p class="detail"><strong>Phone:</strong> {{ profile.user.phone }}</p>
+        <div class="actions">
+            <a href="/provider/{{ profile.id }}/">View Profile</a>
+            <a href="/job-request/?provider_id={{ profile.id }}">&#43; Request This Provider</a>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <p class="no-results">No providers found matching your criteria.</p>
+{% endif %}
+
+<hr>
+<p><a href="/">&#8592; Back to Home</a></p>
+
+</body>
+</html>

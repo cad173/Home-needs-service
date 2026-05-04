@@ -3,7 +3,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
-from .models import Profile  
+from django.db.models import Q
+from .models import Service, ProviderProfile, Profile
 
 # 🏠 Home Page
 def home(request):
@@ -92,3 +93,42 @@ def dashboard(request):
 def logout_view(request):
     logout(request)
     return redirect('home')
+
+
+@login_required
+def service_search(request):
+    service_type = request.GET.get('service_type', '').strip()
+    location = request.GET.get('location', '').strip()
+    availability = request.GET.get('availability', '').strip()
+
+    services = Service.objects.all()
+    providers = ProviderProfile.objects.select_related('user').all()
+
+    if service_type:
+        services = services.filter(
+            Q(category__icontains=service_type) | Q(service_name__icontains=service_type)
+        )
+
+    if location:
+        providers = providers.filter(
+            Q(user__city__icontains=location)
+            | Q(user__state__icontains=location)
+            | Q(user__zip_code__icontains=location)
+        )
+
+    if availability:
+        providers = providers.filter(availability_status__icontains=availability)
+
+    categories = Service.objects.values_list('category', flat=True).distinct().order_by('category')
+
+    context = {
+        'services': services,
+        'providers': providers,
+        'categories': categories,
+        'service_type': service_type,
+        'location': location,
+        'availability': availability,
+        'result_count': services.count() + providers.count(),
+        'searched': any([service_type, location, availability]),
+    }
+    return render(request, 'services/service_search.html', context)
